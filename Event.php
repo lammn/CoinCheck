@@ -14,7 +14,8 @@ use Eccube\Application;
 use Eccube\Event\TemplateEvent;
 use Plugin\CoinCheck\Entity\CoinCheck;
 
-require_once 'Request.php';
+set_include_path(__DIR__.'/pear');
+require_once "HTTP/Request2.php";
 
 /**
  * Class Event.
@@ -68,11 +69,6 @@ class Event
         }
     }
 
-    /* テンプレートを設定する。携帯ははじく */
-    private function selectTemplate()
-    {
-    }
-
     /* 決済用のボタン作成 */
     private function getButtonObject(CoinCheck $config, $Order)
     {
@@ -86,25 +82,23 @@ class Event
             "email" => $Order->getEmail(),
             "currency" => "JPY",
             "amount" => $Order->getPaymentTotal(),
-            //"callback_url" => $strCallbackUrl,
             "success_url" => $successUrl,
             "max_times" => 1
         ));
         $strAccessKey = $config->getAccessKey();
         $strAccessSecret = $config->getSecretKey();
         $strMessage = $intNonce . $strUrl . http_build_query($arrQuery);
-
         # hmacで署名
         $strSignature = hash_hmac("sha256", $strMessage, $strAccessSecret);
 
-        $objReq = new \HTTP_Request($strUrl);
+        $objReq = new \HTTP_Request2($strUrl);
         $objReq->setMethod('POST');
-        $objReq->addHeader("ACCESS-KEY", $strAccessKey);
-        $objReq->addHeader("ACCESS-NONCE", $intNonce);
-        $objReq->addHeader("ACCESS-SIGNATURE", $strSignature);
+        $objReq->setHeader("ACCESS-KEY", $strAccessKey);
+        $objReq->setHeader("ACCESS-NONCE", $intNonce);
+        $objReq->setHeader("ACCESS-SIGNATURE", $strSignature);
         $objReq->setBody(http_build_query($arrQuery));
-        $objReq->sendRequest();
-        $arrJson = json_decode($objReq->getResponseBody(), true);
+        $objReq = $objReq->send();
+        $arrJson = json_decode($objReq->getBody(), true);
 
         return $arrJson;
     }
